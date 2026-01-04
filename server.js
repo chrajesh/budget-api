@@ -58,16 +58,21 @@ app.get('/', (req, res) => {
   });
 });
 
-// Swagger Documentation
-app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Budget Planning API Documentation'
-}));
-
-// Swagger JSON endpoint
+// Swagger JSON endpoint with dynamic URL
 app.get('/swagger.json', (req, res) => {
+  const dynamicSpec = swaggerSpec.generateSwaggerSpec(req);
   res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
+  res.send(dynamicSpec);
+});
+
+// Swagger Documentation with dynamic URL
+app.use('/swagger', swaggerUi.serve);
+app.get('/swagger', (req, res) => {
+  const dynamicSpec = swaggerSpec.generateSwaggerSpec(req);
+  swaggerUi.setup(dynamicSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Budget Planning API Documentation'
+  })(req, res);
 });
 
 // API Routes

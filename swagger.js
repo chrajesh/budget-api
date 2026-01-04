@@ -1,28 +1,57 @@
 // swagger.js - Swagger/OpenAPI Configuration
 const swaggerJsdoc = require('swagger-jsdoc');
 
-const options = {
-  definition: {
-    openapi: '3.0.4',
-    info: {
-      title: 'BudgetPlanning.API',
-      version: '1.0',
-      description: 'Budget Planning API - Node.js Express implementation',
-      contact: {
-        name: 'API Support',
-        email: 'support@budgetapi.com'
-      }
-    },
-    servers: [
+// Function to generate swagger spec with dynamic server URL
+const generateSwaggerSpec = (req) => {
+  let servers = [];
+  
+  if (req) {
+    // Dynamically determine server URL from request
+    const protocol = req.protocol || 'http';
+    const host = req.get('host');
+    const currentUrl = `${protocol}://${host}`;
+    
+    servers = [
       {
-        url: 'https://budget-api-488099994870.us-south1.run.app',
-        description: 'Production server'
+        url: currentUrl,
+        description: 'Current server'
+      }
+    ];
+  } else {
+    // Fallback for when no request is available (initial load)
+    const isCloudRun = process.env.K_SERVICE !== undefined;
+    const PORT = process.env.PORT || 3000;
+    
+    if (isCloudRun) {
+      servers = [
+        {
+          url: 'https://budget-api-488099994870.us-south1.run.app',
+          description: 'Production server (Cloud Run)'
+        }
+      ];
+    } else {
+      servers = [
+        {
+          url: `http://localhost:${PORT}`,
+          description: 'Development server (Local)'
+        }
+      ];
+    }
+  }
+
+  const options = {
+    definition: {
+      openapi: '3.0.4',
+      info: {
+        title: 'BudgetPlanning.API',
+        version: '1.0',
+        description: 'Budget Planning API - Node.js Express implementation',
+        contact: {
+          name: 'API Support',
+          email: 'support@budgetapi.com'
+        }
       },
-      {
-        url: 'http://localhost:3000',
-        description: 'Development server'
-      }
-    ],
+      servers: servers,
     components: {
       schemas: {
         LoginRequest: {
@@ -411,6 +440,12 @@ const options = {
   apis: ['./swagger-paths.js']
 };
 
-const swaggerSpec = swaggerJsdoc(options);
+  return swaggerJsdoc(options);
+};
 
+// Generate default spec for initial module export
+const swaggerSpec = generateSwaggerSpec(null);
+
+// Export both the spec and the generator function
 module.exports = swaggerSpec;
+module.exports.generateSwaggerSpec = generateSwaggerSpec;
