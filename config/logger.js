@@ -47,8 +47,23 @@ const loggerConfig = {
   transports: []
 };
 
-// Local development: Console logging with colors
-if (!isProduction || !isGCP) {
+// Console transport configuration
+if (isGCP) {
+  // Cloud Run: Use structured JSON logging to stdout
+  // Cloud Run automatically captures stdout/stderr and sends to Cloud Logging
+  loggerConfig.transports.push(
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.errors({ stack: true }),
+        winston.format.json() // Structured JSON for Cloud Logging
+      )
+    })
+  );
+  
+  console.log(`[Logger] Cloud Run logging enabled - Service: ${serviceName}, Environment: ${environment}`);
+} else {
+  // Local development: Console logging with colors
   loggerConfig.transports.push(
     new winston.transports.Console({
       format: winston.format.combine(
@@ -66,24 +81,6 @@ if (!isProduction || !isGCP) {
       )
     })
   );
-}
-
-// GCP Cloud Run: Use Google Cloud Logging
-if (isGCP) {
-  const loggingWinston = new LoggingWinston({
-    projectId: process.env.GCP_PROJECT_ID || 'budget-project-483219',
-    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS, // Optional: for local testing
-    // Labels for filtering in Cloud Logging
-    labels: {
-      service: serviceName,
-      environment: environment,
-      version: process.env.APP_VERSION || '1.0.0'
-    }
-  });
-  
-  loggerConfig.transports.push(loggingWinston);
-  
-  console.log(`[Logger] GCP Cloud Logging enabled - Service: ${serviceName}, Environment: ${environment}`);
 }
 
 // Create the logger
