@@ -12,9 +12,12 @@ const dbConfig = {
   database: process.env.DB_NAME || 'postgres',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'A15gim0T!@',
-  max: 20,
+  max: isCloudRun ? 5 : 20, // Lower connection pool for Cloud Run
+  min: 1,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 20000, // Increased to 20s
+  statement_timeout: 60000, // 60 second query timeout
+  query_timeout: 60000,
 };
 
 // Connection method based on environment
@@ -24,10 +27,11 @@ if (isCloudRun) {
   console.log(`Using Cloud SQL Unix socket: ${dbConfig.host}`);
 } else {
   // Local development: Direct IP connection (requires IP whitelisting)
-  dbConfig.host = process.env.DB_HOST || '34.174.94.164';
+  dbConfig.host = process.env.DB_HOST || '34.174.171.33';
   dbConfig.port = parseInt(process.env.DB_PORT || '5432');
   dbConfig.ssl = { rejectUnauthorized: false };
   console.log(`Using direct IP connection: ${dbConfig.host}:${dbConfig.port}`);
+  console.log(`Database: ${dbConfig.database}, User: ${dbConfig.user}`);
 }
 
 const pool = new Pool(dbConfig);

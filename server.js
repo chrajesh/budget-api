@@ -32,11 +32,18 @@ app.use(helmet({
   },
 }));
 app.use(cors()); // Enable CORS
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+app.use(express.json({ limit: '50mb' })); // Parse JSON bodies with 50MB limit
+app.use(express.urlencoded({ extended: true, limit: '50mb' })); // Parse URL-encoded bodies with 50MB limit
 
 // HTTP request logging with Winston
 app.use(morgan('combined', { stream: logger.stream }));
+
+// Request timeout middleware (15 minutes for large POST operations)
+app.use((req, res, next) => {
+  req.setTimeout(900000); // 15 minutes
+  res.setTimeout(900000); // 15 minutes
+  next();
+});
 
 // Add request timing middleware
 app.use((req, res, next) => {
