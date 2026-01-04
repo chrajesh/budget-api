@@ -8,6 +8,8 @@ const logger = require('../config/logger');
  */
 exports.getSalesPersonManagersData = async (req, res) => {
   try {
+    logger.info('GetSalesPersonManagersData - Request received');
+    
     // TODO: Implement actual database query
     const mockData = [
       {
@@ -24,8 +26,10 @@ exports.getSalesPersonManagersData = async (req, res) => {
       }
     ];
 
+    logger.debug('GetSalesPersonManagersData - Returning data', { recordCount: mockData.length });
     res.status(200).json(mockData);
   } catch (error) {
+    logger.logError(error, { endpoint: 'GetSalesPersonManagersData' });
     res.status(404).json({
       type: 'https://tools.ietf.org/html/rfc7231#section-6.5.4',
       title: 'Not Found',
@@ -41,6 +45,8 @@ exports.getSalesPersonManagersData = async (req, res) => {
  */
 exports.getProductTypes = async (req, res) => {
   try {
+    logger.info('GetProductTypes - Request received');
+    
     // TODO: Implement actual database query
     const mockData = [
       {
@@ -57,8 +63,10 @@ exports.getProductTypes = async (req, res) => {
       }
     ];
 
+    logger.debug('GetProductTypes - Returning data', { productTypeCount: mockData.length });
     res.status(200).json(mockData);
   } catch (error) {
+    logger.logError(error, { endpoint: 'GetProductTypes' });
     res.status(404).json({
       type: 'https://tools.ietf.org/html/rfc7231#section-6.5.4',
       title: 'Not Found',

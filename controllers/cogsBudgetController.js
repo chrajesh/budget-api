@@ -1,4 +1,5 @@
 // controllers/cogsBudgetController.js
+const logger = require('../config/logger');
 
 /**
  * GET /api/CogsBudget/GetCogsActualBudget
@@ -7,6 +8,13 @@
 exports.getCogsActualBudget = async (req, res) => {
   try {
     const { financialYear, budgetYear, parentCustomer, location } = req.query;
+
+    logger.info('GetCogsActualBudget - Request received', {
+      financialYear,
+      budgetYear,
+      parentCustomer,
+      location
+    });
 
     // TODO: Implement actual database query
     // This is a mock response
@@ -33,8 +41,10 @@ exports.getCogsActualBudget = async (req, res) => {
       }
     ];
 
+    logger.debug('GetCogsActualBudget - Returning mock data', { recordCount: mockData.length });
     res.status(200).json(mockData);
   } catch (error) {
+    logger.logError(error, { endpoint: 'GetCogsActualBudget', query: req.query });
     res.status(404).json({
       type: 'https://tools.ietf.org/html/rfc7231#section-6.5.4',
       title: 'Not Found',
@@ -52,8 +62,13 @@ exports.insertOrUpdateCogsBudgetData = async (req, res) => {
   try {
     const budgetData = req.body;
 
+    logger.info('InsertOrUpdateCogsBudgetData - Request received', {
+      recordCount: Array.isArray(budgetData) ? budgetData.length : 0
+    });
+
     // Validate input
     if (!Array.isArray(budgetData) || budgetData.length === 0) {
+      logger.warn('InsertOrUpdateCogsBudgetData - Invalid input');
       return res.status(400).json({
         type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
         title: 'Bad Request',
@@ -64,6 +79,7 @@ exports.insertOrUpdateCogsBudgetData = async (req, res) => {
 
     // TODO: Implement actual database insert/update logic
     // This is a mock response
+    logger.info('InsertOrUpdateCogsBudgetData - Success', { recordsProcessed: budgetData.length });
     res.status(200).json({
       success: true,
       message: 'COGS budget data saved successfully',

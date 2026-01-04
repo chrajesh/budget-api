@@ -1,4 +1,5 @@
 // controllers/hrPayrollController.js
+const logger = require('../config/logger');
 
 /**
  * POST /api/HRPayroll/GetCurrentFYCompensationAndBudgetData
@@ -7,6 +8,11 @@
 exports.getCurrentFYCompensationAndBudgetData = async (req, res) => {
   try {
     const payrollRequest = req.body;
+
+    logger.info('GetCurrentFYCompensationAndBudgetData - Request received', {
+      financialYear: payrollRequest.financialYear,
+      budgetYear: payrollRequest.budgetYear
+    });
 
     // TODO: Implement actual database query
     // This is a mock response
@@ -40,12 +46,16 @@ exports.insertOrUpdatePayrollBudgetData = async (req, res) => {
   try {
     const payrollBudgetData = req.body;
 
+    logger.info('InsertOrUpdatePayrollBudgetData - Processing request');
+
     // TODO: Implement actual database insert/update logic
+    logger.info('InsertOrUpdatePayrollBudgetData - Success');
     res.status(200).json({
       success: true,
       message: 'Payroll budget data saved successfully'
     });
   } catch (error) {
+    logger.logError(error, { endpoint: 'InsertOrUpdatePayrollBudgetData' });
     res.status(500).json({
       error: 'Internal server error',
       message: error.message
@@ -60,6 +70,8 @@ exports.insertOrUpdatePayrollBudgetData = async (req, res) => {
 exports.getPayrollLineLogInfo = async (req, res) => {
   try {
     const { headerRefId, lineRefId } = req.query;
+
+    logger.info('GetPayrollLineLogInfo - Request received', { headerRefId, lineRefId });
 
     // TODO: Implement actual database query
     const mockData = {
