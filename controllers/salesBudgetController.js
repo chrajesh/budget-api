@@ -1,4 +1,6 @@
 // controllers/salesBudgetController.js
+const pool = require('../config/database');
+const logger = require('../config/logger');
 
 /**
  * GET /api/SalesBudget/SalesPerson_Managers_Data
@@ -205,11 +207,23 @@ exports.getCustomerData = async (req, res) => {
  * Insert or update sales budget data
  */
 exports.insertOrUpdateBudgetData = async (req, res) => {
+  const client = await pool.connect();
+  
   try {
     const budgetData = req.body;
+    
+    logger.info('InsertOrUpdateBudgetData - Request received', {
+      recordCount: Array.isArray(budgetData) ? budgetData.length : 0,
+      userId: req.user?.id || 'anonymous'
+    });
 
     // Validate input
     if (!Array.isArray(budgetData) || budgetData.length === 0) {
+      logger.warn('InsertOrUpdateBudgetData - Invalid input', {
+        isArray: Array.isArray(budgetData),
+        length: budgetData?.length
+      });
+      
       return res.status(400).json({
         type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
         title: 'Bad Request',
@@ -218,13 +232,155 @@ exports.insertOrUpdateBudgetData = async (req, res) => {
       });
     }
 
-    // TODO: Implement actual database insert/update logic
+    await client.query('BEGIN');
+    logger.debug('Transaction started');
+
+    const insertedRecords = [];
+    const updatedRecords = [];
+    const startTime = Date.now();
+
+    for (const record of budgetData) {
+      // Check if record exists based on budget_header_ref_id and budget_line_ref_id
+      const checkQuery = `
+        SELECT id FROM budget.sales_budget 
+        WHERE budget_header_ref_id = $1 AND budget_line_ref_id = $2
+      `;
+      const checkResult = await client.query(checkQuery, [
+        record.budgetHeader_RefId,
+        record.budgetLine_RefId
+      ]);
+
+      if (checkResult.rows.length > 0) {
+        // Update existing record
+        const updateQuery = `
+          UPDATE budget.sales_budget 
+          SET 
+            budget_year = $1,
+            financial_year = $2,
+            sales_person = $3,
+            sales_manager = $4,
+            budget_status = $5,
+            sold_to_customer = $6,
+            parent_customer = $7,
+            location = $8,
+            budget_model = $9,
+            sales_month = $10,
+            product_type_ref_id = $11,
+            is_modified = $12,
+            budget_sales_percentage = $13,
+            budget_gross_margin_percentage = $14,
+            comments = $15,
+            budget_sales = $16,
+            budget_gross_margin = $17,
+            user_name = $18,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE budget_header_ref_id = $19 AND budget_line_ref_id = $20
+          RETURNING id
+        `;
+        
+        const updateResult = await client.query(updateQuery, [
+          record.budgetYear,
+          record.financialYear,
+          record.salesPerson,
+          record.salesManager,
+          record.budgetStatus,
+          record.soldToCustomer,
+          record.parentCustomer,
+          record.location,
+          record.budgetModel,
+          record.salesMonth,
+          record.productType_RefId,
+          record.isModified,
+          record.budgetSalesPercentage,
+          record.budgetGrossMarginPercentage,
+          record.comments,
+          record.budget_Sales,
+          record.budget_GrossMargin,
+          record.userName,
+          record.budgetHeader_RefId,
+          record.budgetLine_RefId
+        ]);
+        
+        updatedRecords.push(updateResult.rows[0].id);
+        logger.debug('Record updated', { 
+          id: updateResult.rows[0].id,
+          budgetHeaderRefId: record.budgetHeader_RefId,
+          budgetLineRefId: record.budgetLine_RefId
+        });
+      } else {
+        // Insert new record
+        const insertQuery = `
+          INSERT INTO budget.sales_budget (
+            budget_header_ref_id, budget_line_ref_id, budget_year, financial_year,
+            sales_person, sales_manager, budget_status, sold_to_customer, parent_customer,
+            location, budget_model, sales_month, product_type_ref_id, is_modified,
+            budget_sales_percentage, budget_gross_margin_percentage,
+            comments, budget_sales, budget_gross_margin, user_name
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+          )
+          RETURNING id
+        `;
+        
+        const insertResult = await client.query(insertQuery, [
+          record.budgetHeader_RefId,
+          record.budgetLine_RefId,
+          record.budgetYear,
+          record.financialYear,
+          record.salesPerson,
+          record.salesManager,
+          record.budgetStatus,
+          record.soldToCustomer,
+          record.parentCustomer,
+          record.location,
+          record.budgetModel,
+          record.salesMonth,
+          record.productType_RefId,
+          record.isModified,
+          record.budgetSalesPercentage,
+          record.budgetGrossMarginPercentage,
+          record.comments,
+          record.budget_Sales,
+          record.budget_GrossMargin,
+          record.userName
+        ]);
+        
+        insertedRecords.push(insertResult.rows[0].id);
+        logger.debug('Record inserted', { 
+          id: insertResult.rows[0].id,
+          budgetHeaderRefId: record.budgetHeader_RefId,
+          budgetLineRefId: record.budgetLine_RefId
+        });
+      }
+    }
+
+    await client.query('COMMIT');
+    
+    const duration = Date.now() - startTime;
+    logger.info('InsertOrUpdateBudgetData - Transaction completed', {
+      totalRecords: budgetData.length,
+      inserted: insertedRecords.length,
+      updated: updatedRecords.length,
+      duration: `${duration}ms`
+    });
+
     res.status(200).json({
       success: true,
       message: 'Sales budget data saved successfully',
-      recordsProcessed: budgetData.length
+      recordsProcessed: budgetData.length,
+      inserted: insertedRecords.length,
+      updated: updatedRecords.length,
+      insertedIds: insertedRecords,
+      updatedIds: updatedRecords
     });
   } catch (error) {
+    await client.query('ROLLBACK');
+    
+    logger.logError(error, {
+      endpoint: 'InsertOrUpdateBudgetData',
+      recordCount: req.body?.length || 0
+    });
+    
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         type: 'https://tools.ietf.org/html/rfc7231#section-6.5.1',
@@ -236,8 +392,11 @@ exports.insertOrUpdateBudgetData = async (req, res) => {
 
     res.status(500).json({
       error: 'Internal server error',
-      message: error.message
+      message: error.message,
+      detail: error.detail || 'An error occurred while processing the request'
     });
+  } finally {
+    client.release();
   }
 };
 

@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
+const logger = require('./config/logger');
 
 // Import routes
 const authenticationRoutes = require('./routes/authentication');
@@ -23,7 +24,19 @@ app.use(helmet()); // Security headers
 app.use(cors()); // Enable CORS
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
-app.use(morgan('dev')); // HTTP request logger
+
+// HTTP request logging with Winston
+app.use(morgan('combined', { stream: logger.stream }));
+
+// Add request timing middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.logRequest(req, res, duration);
+  });
+  next();
+});
 
 // Health check endpoint
 app.get('/', (req, res) => {
@@ -64,7 +77,13 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  logger.logError(err, {
+    method: req.method,
+    url: req.url,
+    ip: req.ip,
+    status: err.status || 500
+  });
+  
   res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
@@ -73,7 +92,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`
+  const startupMessage = `
 ╔════════════════════════════════════════════════════╗
 ║       Budget Planning API Server Started          ║
 ╠════════════════════════════════════════════════════╣
@@ -95,7 +114,14 @@ app.listen(PORT, () => {
 ║  - POST   /api/SGABudget/ForecastData              ║
 ║  ... and 20+ more endpoints (see Swagger)          ║
 ╚════════════════════════════════════════════════════╝
-  `);
+  `;
+  
+  console.log(startupMessage);
+  logger.info('Budget API Server Started', {
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    nodeVersion: process.version
+  });
 });
 
 module.exports = app;
