@@ -15,6 +15,10 @@ const options = {
     },
     servers: [
       {
+        url: 'https://budget-api-488099994870.us-south1.run.app',
+        description: 'Production server'
+      },
+      {
         url: 'http://localhost:3000',
         description: 'Development server'
       }
