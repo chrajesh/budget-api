@@ -2,13 +2,37 @@
 const winston = require('winston');
 const { LoggingWinston } = require('@google-cloud/logging-winston');
 
-// Determine if running in GCP (Cloud Run sets this env variable)
-const isProduction = process.env.NODE_ENV === 'production';
+// Determine environment from various sources
 const isGCP = process.env.K_SERVICE !== undefined; // Cloud Run specific
+const serviceName = process.env.K_SERVICE || 'budget-api';
+
+// Detect environment from service name or explicit env variable
+let environment = process.env.NODE_ENV || 'development';
+
+// Auto-detect from service name patterns (dev, qa, staging, prod)
+if (isGCP && !process.env.NODE_ENV) {
+  if (serviceName.includes('-dev') || serviceName.includes('dev-')) {
+    environment = 'development';
+  } else if (serviceName.includes('-qa') || serviceName.includes('qa-')) {
+    environment = 'qa';
+  } else if (serviceName.includes('-staging') || serviceName.includes('staging-')) {
+    environment = 'staging';
+  } else {
+    environment = 'production';
+  }
+}
+
+const isProduction = environment === 'production';
+
+// Set log level based on environment
+let logLevel = process.env.LOG_LEVEL;
+if (!logLevel) {
+  logLevel = isProduction ? 'info' : 'debug';
+}
 
 // Create base logger configuration
 const loggerConfig = {
-  level: process.env.LOG_LEVEL || 'info',
+  level: logLevel,
   format: winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),
@@ -16,8 +40,9 @@ const loggerConfig = {
     winston.format.json()
   ),
   defaultMeta: { 
-    service: 'budget-api',
-    environment: process.env.NODE_ENV || 'development'
+    service: serviceName,
+    environment: environment,
+    version: process.env.APP_VERSION || '1.0.0'
   },
   transports: []
 };
@@ -50,12 +75,15 @@ if (isGCP) {
     keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS, // Optional: for local testing
     // Labels for filtering in Cloud Logging
     labels: {
-      service: 'budget-api',
-      environment: process.env.NODE_ENV || 'production'
+      service: serviceName,
+      environment: environment,
+      version: process.env.APP_VERSION || '1.0.0'
     }
   });
   
   loggerConfig.transports.push(loggingWinston);
+  
+  console.log(`[Logger] GCP Cloud Logging enabled - Service: ${serviceName}, Environment: ${environment}`);
 }
 
 // Create the logger
