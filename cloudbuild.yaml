@@ -31,7 +31,7 @@ steps:
       - '--image'
       - 'gcr.io/$PROJECT_ID/budget-api:$COMMIT_SHA'
       - '--region'
-      - 'us-south1'
+      - 'us-central1'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
@@ -43,12 +43,8 @@ steps:
       - '1'
       - '--max-instances'
       - '10'
-      - '--add-cloudsql-instances'
-      - 'budget-project-483219:us-south1:budget-app'
       - '--set-env-vars'
-      - 'NODE_ENV=production,PORT=80,DB_NAME=postgres,DB_USER=postgres'
-      - '--set-secrets'
-      - 'DB_PASSWORD=budget-db-password:latest'
+      - 'NODE_ENV=production,PORT=80'
 
 images:
   - 'gcr.io/$PROJECT_ID/budget-api:$COMMIT_SHA'
