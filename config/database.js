@@ -4,24 +4,31 @@ const { Pool } = require('pg');
 // Cloud SQL Configuration
 const INSTANCE_CONNECTION_NAME = 'budget-project-483219:us-south1:budget-app';
 
-// Database configuration - Try different IPs or use Cloud SQL Proxy
+// Detect if running on Cloud Run
+const isCloudRun = process.env.K_SERVICE !== undefined;
+
+// Database configuration
 const dbConfig = {
-  // Option 1: Direct IP connection (requires IP whitelisting in Cloud SQL)
-  host: process.env.DB_HOST || '34.174.94.164', // Change to 34.174.171.33 if needed
-  port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'postgres',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'A15gim0T!@',
-  
-  // Option 2: Unix socket (when using Cloud SQL Proxy locally)
-  // Uncomment below and comment out 'host' above to use Cloud SQL Proxy
-  // host: `/cloudsql/${INSTANCE_CONNECTION_NAME}`,
-  
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
-  ssl: { rejectUnauthorized: false } // Required for Cloud SQL external connections
 };
+
+// Connection method based on environment
+if (isCloudRun) {
+  // Cloud Run: Use Unix socket (requires Cloud SQL connection configured in Cloud Run)
+  dbConfig.host = `/cloudsql/${INSTANCE_CONNECTION_NAME}`;
+  console.log(`Using Cloud SQL Unix socket: ${dbConfig.host}`);
+} else {
+  // Local development: Direct IP connection (requires IP whitelisting)
+  dbConfig.host = process.env.DB_HOST || '34.174.94.164';
+  dbConfig.port = parseInt(process.env.DB_PORT || '5432');
+  dbConfig.ssl = { rejectUnauthorized: false };
+  console.log(`Using direct IP connection: ${dbConfig.host}:${dbConfig.port}`);
+}
 
 const pool = new Pool(dbConfig);
 
